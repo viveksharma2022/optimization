@@ -3,8 +3,9 @@
 
 #define DATA_SIZE 500
 #define a0 1000.0
-#define a1 8.0
+#define a1 7.0
 #define a2 0.5
+#define a3 0.05
 #define X_START 1.0f
 #define X_END 10.0f
 
@@ -21,11 +22,11 @@ int main() {
 	// Initialize dataY
 	std::transform(dataX.begin(), dataX.end(), dataY.begin(),
 		[&](const float& x) {
-			return a0 + a1 * x + a2*x*x;
+			return a0 + a1 * x + a2 * x * x;
 		});
 
-	PolynomialRegressor1D_GN<3, DATA_SIZE> polRegressor(dataX, dataY);
-	std::array<float, 3> initialCoefficients{ 70.0,1.0,0.1 };
+	PolynomialRegressor1D_LM<3, DATA_SIZE> polRegressor(dataX, dataY);
+	std::array<float, 3> initialCoefficients{ 70.0,1.0,0.1};
 	auto start = std::chrono::high_resolution_clock::now();
 	polRegressor.InitializeCoefficients(initialCoefficients);
 	polRegressor.Fit();

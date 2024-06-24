@@ -5,6 +5,8 @@
 #include <chrono>
 #define LEARN_RATE 0.00000005
 #define LEARN_RATE_GN 5e-1
+#define LAMBDA 5e2
+
 
 struct Point2Df {
 	float x;
@@ -37,7 +39,7 @@ public:
 		dataY(dataY),
 		residual(0.0),
 		cost(0.0),
-		iterations(1e4),
+		iterations(1e5),
 		tol(1E-3)
 	{}
 	void InitializeX(float start, float stop);
@@ -167,7 +169,7 @@ public:
 		std::array<float, dataSize>& dataY) :
 		PolynomialRegressor1D_GD<pOrder,dataSize>(dataX, dataY) {}
 
-	void UpdateCoefficients();
+	virtual void UpdateCoefficients();
 	void Fit();
 };
 
@@ -176,12 +178,20 @@ template<int pOrder, int dataSize>
 void PolynomialRegressor1D_GN<pOrder, dataSize>::Fit() {
 		PolynomialRegressor1D_GD<pOrder, dataSize>::ComputeModelMatrixX();	
 	this->ComputeSecondDifferentiables(); // second derivates are all constants, so are computed once
+	float previousCost = 0.0f;
 	for (size_t iter = 0; iter < PolynomialRegressor1D_GD<pOrder, dataSize>::iterations; iter++) {
 		this->ComputeModelY();
 		this->ComputeResidual();
 		this->ComputeCost();
 		this->ComputeDifferentiables();
 		this->UpdateCoefficients();
+		//check cost change
+		if (abs(previousCost - this->cost) < 1e-13) {
+			std::cout << "Cost function change below tolerance limit" << "\n";
+			break;
+		}
+		previousCost = this->cost;
+		//std::cout << "Cost function: " << this->cost << "\n";
 		/////// check loop break conditions
 	}
 		std::cout << "Final cost function: " << this->cost << "\n";
@@ -197,5 +207,25 @@ void PolynomialRegressor1D_GN<pOrder, dataSize>::UpdateCoefficients() {
 		this->coefficients[degree] -=
 			LEARN_RATE_GN*(this->differentiables[degree]/
 				this->secondDifferentiables[degree]);
+	}
+}
+
+// Levenberg-Macquardt 
+template<int pOrder, int dataSize>
+class PolynomialRegressor1D_LM : public PolynomialRegressor1D_GN<pOrder, dataSize> {
+public:
+	PolynomialRegressor1D_LM(std::array<float, dataSize>& dataX,
+		std::array<float, dataSize>& dataY) :
+		PolynomialRegressor1D_GN<pOrder, dataSize>(dataX, dataY) {}
+
+	void UpdateCoefficients();
+};
+
+template<int pOrder, int dataSize>
+void PolynomialRegressor1D_LM<pOrder, dataSize>::UpdateCoefficients() {
+	for (int degree = 0; degree < pOrder; degree++) {
+		this->coefficients[degree] -=
+			(1 / (this->secondDifferentiables[degree]/ LEARN_RATE_GN + LAMBDA))
+			* (this->differentiables[degree]);
 	}
 }
